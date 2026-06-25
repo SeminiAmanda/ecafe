@@ -13,7 +13,9 @@ const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: "https://ecafe-frontend-amanda.azurewebsites.net"
+}));
 app.use(express.json());
 
 // Health check route (useful to verify Azure deployment is alive)
