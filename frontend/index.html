@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brew & Bite — Cafe Management</title>
+<style>
+  :root {
+    --coffee-dark: #3b2418;
+    --coffee: #6f4733;
+    --cream: #f7efe3;
+    --cream-2: #efe2cb;
+    --accent: #c1672b;
+    --accent-2: #8a9a5b;
+    --text: #2b1d14;
+    --muted: #8a7763;
+    --danger: #b4452f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--cream);
+    color: var(--text);
+  }
+  header {
+    background: var(--coffee-dark);
+    color: var(--cream);
+    padding: 18px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    letter-spacing: 0.5px;
+  }
+  header h1 span { color: var(--accent); }
+  nav { display: flex; gap: 6px; }
+  nav button {
+    background: transparent;
+    border: 1px solid var(--cream-2);
+    color: var(--cream);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
+  }
+  nav button:hover { background: var(--coffee); }
+  nav button.active { background: var(--accent); border-color: var(--accent); }
+
+  main { padding: 24px 28px; max-width: 1100px; margin: 0 auto; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--cream-2);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    margin-top: 0;
+    color: var(--coffee-dark);
+    border-bottom: 2px solid var(--cream-2);
+    padding-bottom: 10px;
+  }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--cream-2); font-size: 0.92rem; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    margin-right: 6px;
+  }
+  .btn:hover { opacity: 0.88; }
+  .btn.secondary { background: var(--coffee); }
+  .btn.danger { background: var(--danger); }
+  .btn.small { padding: 5px 10px; font-size: 0.78rem; }
+
+  form.inline-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+    align-items: end;
+  }
+  label { font-size: 0.78rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--cream-2);
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+
+  .badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+  }
+  .badge.Pending { background: #c1672b; }
+  .badge.Preparing { background: #8a9a5b; }
+  .badge.Completed { background: #4b6b3c; }
+  .badge.Cancelled { background: #b4452f; }
+
+  .order-builder { display: flex; gap: 16px; flex-wrap: wrap; }
+  .order-builder .menu-pick { flex: 1; min-width: 280px; }
+  .order-builder .cart { flex: 1; min-width: 280px; }
+  .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--cream-2); }
+  .item-row span.price { color: var(--muted); font-size: 0.85rem; }
+
+  #toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--coffee-dark); color: #fff;
+    padding: 12px 18px; border-radius: 8px; font-size: 0.9rem;
+    display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .empty-state { color: var(--muted); font-style: italic; padding: 14px 0; }
+  .api-note {
+    font-size: 0.78rem; color: var(--muted); margin-top: -8px; margin-bottom: 14px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Brew<span>&</span>Bite — Cafe Management</h1>
+  <nav>
+    <button data-tab="menu" class="active">Menu</button>
+    <button data-tab="orders">Orders</button>
+    <button data-tab="customers">Customers</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- MENU SECTION -->
+  <section class="section active" id="menu">
+    <div class="card">
+      <h2>Add Menu Item</h2>
+      <form class="inline-form" id="menuForm">
+        <div><label>Name</label><input type="text" id="m_name" required></div>
+        <div><label>Description</label><input type="text" id="m_desc"></div>
+        <div><label>Price (Rs.)</label><input type="number" id="m_price" step="0.01" required></div>
+        <div>
+          <label>Category</label>
+          <select id="m_category"></select>
+        </div>
+        <div><button class="btn" type="submit">Add Item</button></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Menu Items</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Description</th><th>Category</th><th>Price</th><th>Available</th><th>Actions</th></tr></thead>
+        <tbody id="menuTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ORDERS SECTION -->
+  <section class="section" id="orders">
+    <div class="card">
+      <h2>Place New Order</h2>
+      <div style="margin-bottom:14px;">
+        <label>Customer</label>
+        <select id="order_customer" style="max-width:300px;"></select>
+      </div>
+      <div class="order-builder">
+        <div class="menu-pick">
+          <h3 style="margin:0 0 8px;">Select Items</h3>
+          <div id="orderMenuPicker"></div>
+        </div>
+        <div class="cart">
+          <h3 style="margin:0 0 8px;">Cart</h3>
+          <div id="cartItems"><p class="empty-state">No items added yet.</p></div>
+          <p><strong>Total: Rs. <span id="cartTotal">0.00</span></strong></p>
+          <button class="btn" id="placeOrderBtn">Place Order</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>All Orders</h2>
+      <table>
+        <thead><tr><th>#</th><th>Customer</th><th>Date</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="ordersTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CUSTOMERS SECTION -->
+  <section class="section" id="customers">
+    <div class="card">
+      <h2>Add Customer</h2>
+      <form class="inline-form" id="customerForm">
+        <div><label>Name</label><input type="text" id="c_name" required></div>
+        <div><label>Phone</label><input type="text" id="c_phone"></div>
+        <div><label>Email</label><input type="email" id="c_email"></div>
+        <div><button class="btn" type="submit">Add Customer</button></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Customers</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Actions</th></tr></thead>
+        <tbody id="customersTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ====== CONFIG ======
+// Change this to your deployed Azure backend URL, e.g.
+// const API_BASE = "https://ecafe-backend.azurewebsites.net/api";
+const API_BASE = "http://localhost:5000/api";
+
+let categories = [];
+let menuItems = [];
+let customers = [];
+let cart = []; // { item_id, item_name, price, quantity }
+
+// ====== TAB NAVIGATION ======
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2200);
+}
+
+// ====== API HELPERS ======
+async function apiGet(path) {
+  const res = await fetch(`${API_BASE}${path}`);
+  return res.json();
+}
+async function apiPost(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+async function apiPut(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+async function apiDelete(path) {
+  const res = await fetch(`${API_BASE}${path}`, { method: 'DELETE' });
+  return res.json();
+}
+
+// ====== MENU ======
+async function loadCategories() {
+  categories = await apiGet('/categories');
+  const sel = document.getElementById('m_category');
+  sel.innerHTML = categories.map(c => `<option value="${c.category_id}">${c.category_name}</option>`).join('');
+}
+
+async function loadMenu() {
+  menuItems = await apiGet('/menu');
+  const tbody = document.getElementById('menuTableBody');
+  tbody.innerHTML = menuItems.length ? menuItems.map(item => `
+    <tr>
+      <td>${item.item_name}</td>
+      <td>${item.description || ''}</td>
+      <td>${item.category_name || '-'}</td>
+      <td>Rs. ${Number(item.price).toFixed(2)}</td>
+      <td>${item.is_available ? 'Yes' : 'No'}</td>
+      <td><button class="btn danger small" onclick="deleteMenuItem(${item.item_id})">Delete</button></td>
+    </tr>
+  `).join('') : `<tr><td colspan="6" class="empty-state">No menu items yet.</td></tr>`;
+
+  renderOrderMenuPicker();
+}
+
+document.getElementById('menuForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = {
+    item_name: document.getElementById('m_name').value,
+    description: document.getElementById('m_desc').value,
+    price: parseFloat(document.getElementById('m_price').value),
+    category_id: document.getElementById('m_category').value,
+    is_available: true
+  };
+  await apiPost('/menu', body);
+  showToast('Menu item added');
+  e.target.reset();
+  loadMenu();
+});
+
+async function deleteMenuItem(id) {
+  if (!confirm('Delete this menu item?')) return;
+  await apiDelete(`/menu/${id}`);
+  showToast('Menu item deleted');
+  loadMenu();
+}
+
+// ====== CUSTOMERS ======
+async function loadCustomers() {
+  customers = await apiGet('/customers');
+  const tbody = document.getElementById('customersTableBody');
+  tbody.innerHTML = customers.length ? customers.map(c => `
+    <tr>
+      <td>${c.name}</td>
+      <td>${c.phone || ''}</td>
+      <td>${c.email || ''}</td>
+      <td><button class="btn danger small" onclick="deleteCustomer(${c.customer_id})">Delete</button></td>
+    </tr>
+  `).join('') : `<tr><td colspan="4" class="empty-state">No customers yet.</td></tr>`;
+
+  const sel = document.getElementById('order_customer');
+  sel.innerHTML = customers.map(c => `<option value="${c.customer_id}">${c.name}</option>`).join('');
+}
+
+document.getElementById('customerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = {
+    name: document.getElementById('c_name').value,
+    phone: document.getElementById('c_phone').value,
+    email: document.getElementById('c_email').value
+  };
+  await apiPost('/customers', body);
+  showToast('Customer added');
+  e.target.reset();
+  loadCustomers();
+});
+
+async function deleteCustomer(id) {
+  if (!confirm('Delete this customer?')) return;
+  await apiDelete(`/customers/${id}`);
+  showToast('Customer deleted');
+  loadCustomers();
+}
+
+// ====== ORDER BUILDER ======
+function renderOrderMenuPicker() {
+  const container = document.getElementById('orderMenuPicker');
+  container.innerHTML = menuItems.map(item => `
+    <div class="item-row">
+      <div>${item.item_name} <span class="price">Rs. ${Number(item.price).toFixed(2)}</span></div>
+      <button class="btn small" onclick="addToCart(${item.item_id})">Add</button>
+    </div>
+  `).join('');
+}
+
+function addToCart(itemId) {
+  const item = menuItems.find(i => i.item_id === itemId);
+  const existing = cart.find(c => c.item_id === itemId);
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    cart.push({ item_id: item.item_id, item_name: item.item_name, price: item.price, quantity: 1 });
+  }
+  renderCart();
+}
+
+function removeFromCart(itemId) {
+  cart = cart.filter(c => c.item_id !== itemId);
+  renderCart();
+}
+
+function renderCart() {
+  const container = document.getElementById('cartItems');
+  if (cart.length === 0) {
+    container.innerHTML = `<p class="empty-state">No items added yet.</p>`;
+  } else {
+    container.innerHTML = cart.map(c => `
+      <div class="item-row">
+        <div>${c.item_name} x ${c.quantity}</div>
+        <div>
+          <span class="price">Rs. ${(c.price * c.quantity).toFixed(2)}</span>
+          <button class="btn danger small" onclick="removeFromCart(${c.item_id})">x</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  const total = cart.reduce((sum, c) => sum + c.price * c.quantity, 0);
+  document.getElementById('cartTotal').textContent = total.toFixed(2);
+}
+
+document.getElementById('placeOrderBtn').addEventListener('click', async () => {
+  if (cart.length === 0) { showToast('Cart is empty'); return; }
+  const customerId = document.getElementById('order_customer').value;
+  const body = {
+    customer_id: customerId,
+    items: cart.map(c => ({ item_id: c.item_id, quantity: c.quantity }))
+  };
+  const result = await apiPost('/orders', body);
+  if (result.order_id) {
+    showToast(`Order #${result.order_id} placed`);
+    cart = [];
+    renderCart();
+    loadOrders();
+  } else {
+    showToast('Error placing order');
+  }
+});
+
+// ====== ORDERS LIST ======
+async function loadOrders() {
+  const orders = await apiGet('/orders');
+  const tbody = document.getElementById('ordersTableBody');
+  tbody.innerHTML = orders.length ? orders.map(o => `
+    <tr>
+      <td>#${o.order_id}</td>
+      <td>${o.customer_name || 'Walk-in'}</td>
+      <td>${new Date(o.order_date).toLocaleString()}</td>
+      <td>Rs. ${Number(o.total_amount).toFixed(2)}</td>
+      <td><span class="badge ${o.status}">${o.status}</span></td>
+      <td>
+        <select onchange="updateStatus(${o.order_id}, this.value)">
+          <option value="">Change status</option>
+          <option value="Pending">Pending</option>
+          <option value="Preparing">Preparing</option>
+          <option value="Completed">Completed</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+        <button class="btn danger small" onclick="deleteOrder(${o.order_id})">Delete</button>
+      </td>
+    </tr>
+  `).join('') : `<tr><td colspan="6" class="empty-state">No orders yet.</td></tr>`;
+}
+
+async function updateStatus(orderId, status) {
+  if (!status) return;
+  await apiPut(`/orders/${orderId}/status`, { status });
+  showToast(`Order #${orderId} marked ${status}`);
+  loadOrders();
+}
+
+async function deleteOrder(id) {
+  if (!confirm('Delete this order?')) return;
+  await apiDelete(`/orders/${id}`);
+  showToast('Order deleted');
+  loadOrders();
+}
+
+// ====== INIT ======
+async function init() {
+  await loadCategories();
+  await loadMenu();
+  await loadCustomers();
+  await loadOrders();
+}
+init();
+</script>
+
+</body>
+</html>
